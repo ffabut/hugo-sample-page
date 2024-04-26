@@ -1,0 +1,41 @@
+name: GitHub Pages with Hugo
+# mostly taken from example at: https://github.com/marketplace/actions/hugo-setup
+
+# WHEN action is triggered
+on:
+  push: # On new commit in main branch
+    branches: 
+      - main # Only on main branch
+  pull_request: # Also run on pull requests (but we later skip deploy step in this case)
+
+# WHAT is executed when triggered
+jobs:
+  deploy: # Job named deploy - this builds site and deploys files to GitHub Pages
+    runs-on: ubuntu-latest # Select machine on which this will run (https://docs.github.com/en/actions/using-github-hosted-runners/about-github-hosted-runners/about-github-hosted-runners#standard-github-hosted-runners-for-public-repositories)
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}
+    steps: # Step by step what needs to be executed
+
+      - uses: actions/checkout@v4 # Community action to checkout repo (runner makes a copy/clone of repo)
+        with:
+          submodules: true  # Fetch Hugo themes (true OR recursive)
+          fetch-depth: 0    # Fetch all history for .GitInfo and .Lastmod
+
+      - name: Setup Hugo # Community action to install Hugo framework (https://github.com/marketplace/actions/hugo-setup)
+        uses: peaceiris/actions-hugo@v3
+        with:
+          hugo-version: '0.119.0'
+          # extended: true
+
+      - name: Build # Execute build of site
+        run: hugo --minify # Minification removes unnecessary characters from the code without changing its functionality.
+      # now site is built in ./public directory, so we can deploy it to GitHub Pages
+
+      - name: Deploy # Deploy site to GitHub Pages (deploys to branch gh-pages)
+        uses: peaceiris/actions-gh-pages@v3 # https://github.com/peaceiris/actions-gh-pages
+        if: github.ref == 'refs/heads/main' # Only run this step if commit is on main branch - do not deploy pull request
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./public # Directory where site is built, we build to default ./public
+      
+      # tada, site is online!
